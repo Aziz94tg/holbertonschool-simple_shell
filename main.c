@@ -70,8 +70,8 @@ int main(__attribute__((unused)) int ac, char **argv)
             char *cmd_argv[2];
 
 	    cmd_argv[0] = strtok(line, " \t\r\n");
-
-	    if (argv[0] == NULL)
+	    
+	    if(cmd_argv[0] == NULL)
 		    exit(EXIT_SUCCESS);
 
 	    cmd_argv[1] = NULL;
