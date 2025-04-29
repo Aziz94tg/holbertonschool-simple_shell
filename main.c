@@ -29,7 +29,7 @@ extern char **environ;
  *
  * Return: Always 0
  */
-int main(void)
+int main(__attribute__((unused)) int ac, char **argv)
 {
     char *line = NULL;
     size_t len = 0;
@@ -67,12 +67,12 @@ int main(void)
 
         if (child_pid == 0)
         {
-            char *argv[2];
+            char *cmd_argv[2];
 
-	    argv[0] = line;
-	    argv[1] = NULL;
+	    cmd_argv[0] = line;
+	    cmd_argv[1] = NULL;
 
-            if (execve(line, argv, environ) == -1)
+	    if (execve(line, cmd_argv, environ) == -1)
             {
                 perror(argv[0]); /* as required in error format */
                 exit(EXIT_FAILURE);
