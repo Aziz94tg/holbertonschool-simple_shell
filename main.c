@@ -4,94 +4,105 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-#define MAX_ARGS 64
-
 extern char **environ;
 
-/**
- * is_whitespace - checks if a string is all whitespace
- * @str: input string
- * Return: 1 if all whitespace, 0 otherwise
- */
-int is_whitespace(const char *str)
-{
-	while (*str)
-	{
-		if (*str != ' ' && *str != '\t' && *str != '\n' &&
-		    *str != '\r' && *str != '\v' && *str != '\f')
-			return (0);
-		str++;
-	}
-	return (1);
-}
+#define MAX_INPUT 1024
+#define MAX_PATH 1024
 
-/**
- * main - Simple shell 0.1
- * Return: Always 0
- */
 int main(void)
 {
-	char *line = NULL, *token = NULL;
-	size_t len = 0;
-	ssize_t nread;
-	pid_t child_pid;
-	char *cmd_argv[MAX_ARGS];
-	int i;
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t nread;
 
-	while (1)
-	{
-		if (isatty(STDIN_FILENO))
-			printf("#cisfun$ ");
+    while (1)
+    {
+        printf(":) ");
+        nread = getline(&line, &len, stdin);
+        if (nread == -1)
+        {
+            perror("getline");
+            break;
+        }
 
-		nread = getline(&line, &len, stdin);
-		if (nread == -1)
-		{
-			if (isatty(STDIN_FILENO))
-				printf("\n");
-			break;
-		}
+        // Remove newline
+        if (line[nread - 1] == '\n')
+            line[nread - 1] = '\0';
 
-		if (line[nread - 1] == '\n')
-			line[nread - 1] = '\0';
+        // Ignore empty input
+        if (line[0] == '\0')
+            continue;
 
-		if (line[0] == '\0' || is_whitespace(line))
-			continue;
+        // If command is an absolute path or contains '/', run it directly
+        if (strchr(line, '/'))
+        {
+            if (access(line, X_OK) == 0)
+            {
+                pid_t pid = fork();
+                if (pid == 0)
+                {
+                    char *argv[] = {line, NULL};
+                    execve(line, argv, environ);
+                    perror("execve");
+                    exit(EXIT_FAILURE);
+                }
+                else
+                {
+                    wait(NULL);
+                }
+            }
+            else
+            {
+                perror(line);
+            }
+            continue;
+        }
 
-		child_pid = fork();
-		if (child_pid == -1)
-		{
-			perror("fork");
-			free(line);
-			exit(EXIT_FAILURE);
-		}
+        // Search in PATH
+        char *path = getenv("PATH");
+        if (!path)
+        {
+            fprintf(stderr, "No PATH found\n");
+            continue;
+        }
 
-		if (child_pid == 0)
-		{
-			i = 0;
-			token = strtok(line, " \t\r\n");
-			while (token && i < MAX_ARGS - 1)
-			{
-				cmd_argv[i++] = token;
-				token = strtok(NULL, " \t\r\n");
-			}
-			cmd_argv[i] = NULL;
+        char *path_copy = strdup(path);
+        char *dir = strtok(path_copy, ":");
+        int found = 0;
+        char full_path[MAX_PATH];
 
-			if (cmd_argv[0] == NULL)
-				exit(EXIT_SUCCESS);
+        while (dir)
+        {
+            snprintf(full_path, sizeof(full_path), "%s/%s", dir, line);
+            if (access(full_path, X_OK) == 0)
+            {
+                found = 1;
+                pid_t pid = fork();
+                if (pid == 0)
+                {
+                    char *argv[] = {line, NULL};
+                    execve(full_path, argv, environ);
+                    perror("execve");
+                    exit(EXIT_FAILURE);
+                }
+                else
+                {
+                    wait(NULL);
+                }
+                break;
+            }
+            dir = strtok(NULL, ":");
+        }
 
-			if (execve(cmd_argv[0], cmd_argv, environ) == -1)
-			{
-				perror(cmd_argv[0]);
-				exit(EXIT_FAILURE);
-			}
-		}
-		else
-		{
-			wait(NULL);
-		}
-	}
+        if (!found)
+        {
+            fprintf(stderr, "%s: command not found\n", line);
+        }
 
-	free(line);
-	return (0);
+        free(path_copy);
+    }
+
+    free(line);
+    return 0;
 }
 
