@@ -5,7 +5,7 @@
  *
  * Return: Always 0
  */
-int main(void)
+int pmain(void)
 {
     printf("Simple shell\n");
     return (0);
