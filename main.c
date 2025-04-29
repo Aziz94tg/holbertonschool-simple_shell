@@ -32,9 +32,23 @@ char **parse_line(char *line)
     return tokens;
 }
 
+char *find_path_in_environ(void)
+{
+    int i = 0;
+    size_t len = strlen("PATH=");
+
+    while (environ[i])
+    {
+        if (strncmp(environ[i], "PATH=", len) == 0)
+            return environ[i] + len;
+        i++;
+    }
+    return NULL;
+}
+
 char *find_path(char *command)
 {
-    char *path = getenv("PATH");
+    char *path = find_path_in_environ();
     char *path_copy, *dir, full_path[1024];
     struct stat st;
 
