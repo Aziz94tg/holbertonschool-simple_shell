@@ -1,122 +1,127 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
+#include <string.h>
 #include <sys/wait.h>
 
 extern char **environ;
 
-#define MAX_INPUT 1024
-#define MAX_PATH 1024
+/* Custom implementation of getenv */
+char *_getenv(const char *name)
+{
+	int i;
+	size_t len = strlen(name);
+
+	for (i = 0; environ[i]; i++)
+	{
+		if (strncmp(environ[i], name, len) == 0 && environ[i][len] == '=')
+			return environ[i] + len + 1;
+	}
+	return NULL;
+}
+
+/* Function to check if command exists in PATH */
+char *find_command(char *command)
+{
+	char *path = _getenv("PATH");
+	char *path_copy, *dir, *full_path;
+	size_t len;
+
+	if (!path)
+		return NULL;
+
+	path_copy = strdup(path);
+	if (!path_copy)
+		return NULL;
+
+	dir = strtok(path_copy, ":");
+	while (dir)
+	{
+		len = strlen(dir) + strlen(command) + 2;
+		full_path = malloc(len);
+		if (!full_path)
+		{
+			free(path_copy);
+			return NULL;
+		}
+
+		sprintf(full_path, "%s/%s", dir, command);
+		if (access(full_path, X_OK) == 0)
+		{
+			free(path_copy);
+			return full_path;
+		}
+
+		free(full_path);
+		dir = strtok(NULL, ":");
+	}
+
+	free(path_copy);
+	return NULL;
+}
 
 int main(void)
 {
-    char *line = NULL;
-    size_t len = 0;
-    ssize_t nread;
-    int found;
-    char *path, *path_copy, *dir;
-    char full_path[MAX_PATH];
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t nread;
+	pid_t pid;
+	int status;
+	char *command_path;
 
-    while (1)
-    {
-        printf(":) ");
-        nread = getline(&line, &len, stdin);
-        if (nread == -1)
-        {
-            perror("getline");
-            break;
-        }
+	while (1)
+	{
+		if (isatty(STDIN_FILENO))
+			write(STDOUT_FILENO, ":) ", 3);
 
-        /* Remove newline */
-        if (line[nread - 1] == '\n')
-            line[nread - 1] = '\0';
+		nread = getline(&line, &len, stdin);
+		if (nread == -1)
+			break;
 
-        /* Ignore empty input */
-        if (line[0] == '\0')
-            continue;
+		if (line[nread - 1] == '\n')
+			line[nread - 1] = '\0';
 
-        /* If command is an absolute or relative path */
-        if (strchr(line, '/'))
-        {
-            if (access(line, X_OK) == 0)
-            {
-                pid_t pid;
-                pid = fork();
-                if (pid == 0)
-                {
-                    char *args[2];
-                    args[0] = line;
-                    args[1] = NULL;
-                    execve(line, args, environ);
-                    perror("execve");
-                    exit(EXIT_FAILURE);
-                }
-                else
-                {
-                    wait(NULL);
-                }
-            }
-            else
-            {
-                perror(line);
-            }
-            continue;
-        }
+		if (line[0] == '\0')
+			continue;
 
-        /* Search in PATH */
-        path = getenv("PATH");
-        if (!path)
-        {
-            fprintf(stderr, "No PATH found\n");
-            continue;
-        }
+		/* Try to find full command path */
+		command_path = NULL;
+		if (access(line, X_OK) == 0)
+		{
+			command_path = strdup(line);
+		}
+		else
+		{
+			command_path = find_command(line);
+		}
 
-        path_copy = strdup(path);
-        if (!path_copy)
-        {
-            perror("strdup");
-            continue;
-        }
+		if (!command_path)
+		{
+			dprintf(STDERR_FILENO, "%s: No such file or directory\n", line);
+			continue;
+		}
 
-        dir = strtok(path_copy, ":");
-        found = 0;
+		pid = fork();
+		if (pid == 0)
+		{
+			char *argv[] = {command_path, NULL};
+			execve(command_path, argv, environ);
+			perror("execve");
+			exit(EXIT_FAILURE);
+		}
+		else if (pid > 0)
+		{
+			wait(&status);
+			free(command_path);
+		}
+		else
+		{
+			perror("fork");
+			free(command_path);
+		}
+	}
 
-        while (dir != NULL)
-        {
-            snprintf(full_path, sizeof(full_path), "%s/%s", dir, line);
-            if (access(full_path, X_OK) == 0)
-            {
-                pid_t pid;
-                pid = fork();
-                if (pid == 0)
-                {
-                    char *args[2];
-                    args[0] = line;
-                    args[1] = NULL;
-                    execve(full_path, args, environ);
-                    perror("execve");
-                    exit(EXIT_FAILURE);
-                }
-                else
-                {
-                    wait(NULL);
-                }
-                found = 1;
-                break;
-            }
-            dir = strtok(NULL, ":");
-        }
-
-        if (!found)
-        {
-            fprintf(stderr, "%s: command not found\n", line);
-        }
-
-        free(path_copy);
-    }
-
-    free(line);
-    return 0;
+	free(line);
+	return 0;
 }
 
