@@ -14,6 +14,9 @@ int main(void)
     char *line = NULL;
     size_t len = 0;
     ssize_t nread;
+    int found;
+    char *path, *path_copy, *dir;
+    char full_path[MAX_PATH];
 
     while (1)
     {
@@ -25,24 +28,27 @@ int main(void)
             break;
         }
 
-        // Remove newline
+        /* Remove newline */
         if (line[nread - 1] == '\n')
             line[nread - 1] = '\0';
 
-        // Ignore empty input
+        /* Ignore empty input */
         if (line[0] == '\0')
             continue;
 
-        // If command is an absolute path or contains '/', run it directly
+        /* If command is an absolute or relative path */
         if (strchr(line, '/'))
         {
             if (access(line, X_OK) == 0)
             {
-                pid_t pid = fork();
+                pid_t pid;
+                pid = fork();
                 if (pid == 0)
                 {
-                    char *argv[] = {line, NULL};
-                    execve(line, argv, environ);
+                    char *args[2];
+                    args[0] = line;
+                    args[1] = NULL;
+                    execve(line, args, environ);
                     perror("execve");
                     exit(EXIT_FAILURE);
                 }
@@ -58,30 +64,37 @@ int main(void)
             continue;
         }
 
-        // Search in PATH
-        char *path = getenv("PATH");
+        /* Search in PATH */
+        path = getenv("PATH");
         if (!path)
         {
             fprintf(stderr, "No PATH found\n");
             continue;
         }
 
-        char *path_copy = strdup(path);
-        char *dir = strtok(path_copy, ":");
-        int found = 0;
-        char full_path[MAX_PATH];
+        path_copy = strdup(path);
+        if (!path_copy)
+        {
+            perror("strdup");
+            continue;
+        }
 
-        while (dir)
+        dir = strtok(path_copy, ":");
+        found = 0;
+
+        while (dir != NULL)
         {
             snprintf(full_path, sizeof(full_path), "%s/%s", dir, line);
             if (access(full_path, X_OK) == 0)
             {
-                found = 1;
-                pid_t pid = fork();
+                pid_t pid;
+                pid = fork();
                 if (pid == 0)
                 {
-                    char *argv[] = {line, NULL};
-                    execve(full_path, argv, environ);
+                    char *args[2];
+                    args[0] = line;
+                    args[1] = NULL;
+                    execve(full_path, args, environ);
                     perror("execve");
                     exit(EXIT_FAILURE);
                 }
@@ -89,6 +102,7 @@ int main(void)
                 {
                     wait(NULL);
                 }
+                found = 1;
                 break;
             }
             dir = strtok(NULL, ":");
