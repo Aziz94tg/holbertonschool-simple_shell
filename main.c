@@ -69,7 +69,7 @@ int main(__attribute__((unused)) int ac, char **argv)
         {
             char *cmd_argv[2];
 
-	    cmd_argv[0] = line;
+	    cmd_argv[0] = strtok(line, " \t\r\n");
 	    cmd_argv[1] = NULL;
 
 	    if (execve(line, cmd_argv, environ) == -1)
