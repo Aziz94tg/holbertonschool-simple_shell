@@ -3,6 +3,23 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <ctype.h>
+
+/**
+ * is_whitspace - check for spaces
+ * @str - strnig to check 
+ * Return: 0 if not or 1 if all whitespace
+ */
+int is_whitespace(const char *str)
+{
+	while (*str)
+	{
+		if (!isspace((unsigned char)*str))
+			return (0);
+		str++;
+	}
+	return (1);
+}
 
 extern char **environ;
 
