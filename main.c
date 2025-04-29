@@ -6,68 +6,66 @@
 
 extern char **environ;
 
-/* Custom implementation of getenv */
+#define DELIM " \t\r\n\a"
+
 char *_getenv(const char *name)
 {
-	int i;
-	size_t len = strlen(name);
+	int i = 0, len = strlen(name);
 
-	for (i = 0; environ[i]; i++)
+	while (environ[i])
 	{
 		if (strncmp(environ[i], name, len) == 0 && environ[i][len] == '=')
-			return environ[i] + len + 1;
+			return &environ[i][len + 1];
+		i++;
 	}
 	return NULL;
 }
 
-/* Function to check if command exists in PATH */
-char *find_command(char *command)
+char *find_command_path(char *command)
 {
 	char *path = _getenv("PATH");
-	char *path_copy, *dir, *full_path;
-	size_t len;
+	char *token, *full_path;
+	size_t cmd_len = strlen(command);
 
 	if (!path)
 		return NULL;
 
-	path_copy = strdup(path);
-	if (!path_copy)
-		return NULL;
+	path = strdup(path);
+	token = strtok(path, ":");
 
-	dir = strtok(path_copy, ":");
-	while (dir)
+	while (token)
 	{
-		len = strlen(dir) + strlen(command) + 2;
-		full_path = malloc(len);
+		full_path = malloc(strlen(token) + cmd_len + 2);
 		if (!full_path)
 		{
-			free(path_copy);
+			free(path);
 			return NULL;
 		}
+		strcpy(full_path, token);
+		strcat(full_path, "/");
+		strcat(full_path, command);
 
-		sprintf(full_path, "%s/%s", dir, command);
 		if (access(full_path, X_OK) == 0)
 		{
-			free(path_copy);
+			free(path);
 			return full_path;
 		}
-
 		free(full_path);
-		dir = strtok(NULL, ":");
+		token = strtok(NULL, ":");
 	}
-
-	free(path_copy);
+	free(path);
 	return NULL;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
-	char *line = NULL;
+	char *line = NULL, *command_path = NULL;
 	size_t len = 0;
 	ssize_t nread;
-	pid_t pid;
-	int status;
-	char *command_path;
+	int line_number = 0;
+	char *args[2];
+
+	(void)argc;
 
 	while (1)
 	{
@@ -78,51 +76,42 @@ int main(void)
 		if (nread == -1)
 			break;
 
-		if (line[nread - 1] == '\n')
-			line[nread - 1] = '\0';
+		line_number++;
+		line[nread - 1] = '\0'; /* remove newline */
 
 		if (line[0] == '\0')
 			continue;
 
-		/* Try to find full command path */
-		command_path = NULL;
 		if (access(line, X_OK) == 0)
 		{
 			command_path = strdup(line);
 		}
 		else
 		{
-			command_path = find_command(line);
+			command_path = find_command_path(line);
 		}
 
 		if (!command_path)
 		{
-			dprintf(STDERR_FILENO, "%s: No such file or directory\n", line);
+			fprintf(stderr, "%s: %d: %s: not found\n", argv[0], line_number, line);
 			continue;
 		}
 
-		pid = fork();
-		if (pid == 0)
+		args[0] = command_path;
+		args[1] = NULL;
+
+		if (fork() == 0)
 		{
-			char *argv[2];
-			argv[0] = command_path;
-			argv[1] = NULL;
-			execve(command_path, argv, environ);
+			execve(command_path, args, environ);
 			perror("execve");
-			exit(EXIT_FAILURE);
-		}
-		else if (pid > 0)
-		{
-			wait(&status);
-			free(command_path);
+			exit(1);
 		}
 		else
 		{
-			perror("fork");
+			wait(NULL);
 			free(command_path);
 		}
 	}
-
 	free(line);
 	return 0;
 }
