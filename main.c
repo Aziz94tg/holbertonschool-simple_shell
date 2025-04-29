@@ -104,7 +104,9 @@ int main(void)
 		pid = fork();
 		if (pid == 0)
 		{
-			char *argv[] = {command_path, NULL};
+			char *argv[2];
+			argv[0] = command_path;
+			argv[1] = NULL;
 			execve(command_path, argv, environ);
 			perror("execve");
 			exit(EXIT_FAILURE);
