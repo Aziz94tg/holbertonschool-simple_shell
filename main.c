@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
+#include <string.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 extern char **environ;
 
@@ -31,6 +32,34 @@ char **parse_line(char *line)
     return tokens;
 }
 
+char *find_path(char *command)
+{
+    char *path = getenv("PATH");
+    char *path_copy, *dir, full_path[1024];
+    struct stat st;
+
+    if (!path)
+        return NULL;
+
+    path_copy = strdup(path);
+    if (!path_copy)
+        return NULL;
+
+    dir = strtok(path_copy, ":");
+    while (dir != NULL)
+    {
+        snprintf(full_path, sizeof(full_path), "%s/%s", dir, command);
+        if (stat(full_path, &st) == 0 && (st.st_mode & S_IXUSR))
+        {
+            free(path_copy);
+            return strdup(full_path);
+        }
+        dir = strtok(NULL, ":");
+    }
+    free(path_copy);
+    return NULL;
+}
+
 int main(int argc, char **argv)
 {
     char *line = NULL;
@@ -38,6 +67,7 @@ int main(int argc, char **argv)
     ssize_t read;
     int line_number = 0;
     char **args;
+    char *command_path;
 
     (void)argc;
 
@@ -59,24 +89,41 @@ int main(int argc, char **argv)
 
         args = parse_line(line);
 
-        if (access(args[0], X_OK) != 0)
+        if (args[0] == NULL)
         {
-            fprintf(stderr, "%s: %d: %s: not found\n", argv[0], line_number, args[0]);
             free(args);
             continue;
         }
 
+        command_path = NULL;
+        if (access(args[0], X_OK) == 0)
+        {
+            command_path = strdup(args[0]);
+        }
+        else
+        {
+            command_path = find_path(args[0]);
+            if (!command_path)
+            {
+                fprintf(stderr, "%s: %d: %s: not found\n", argv[0], line_number, args[0]);
+                free(args);
+                continue;
+            }
+        }
+
         if (fork() == 0)
         {
-            execve(args[0], args, environ);
+            execve(command_path, args, environ);
             perror("execve");
             exit(127);
         }
         else
         {
             wait(NULL);
-            free(args);
         }
+
+        free(args);
+        free(command_path);
     }
 
     free(line);
