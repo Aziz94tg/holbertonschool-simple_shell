@@ -43,7 +43,6 @@ int main(void)
         if (child_pid == -1)
         {
             perror("fork");
-            free(line);
             exit(EXIT_FAILURE);
         }
 
