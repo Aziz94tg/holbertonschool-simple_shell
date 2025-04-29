@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <ctype.h>
+
 
 /**
  * is_whitspace - check for spaces
@@ -14,7 +14,8 @@ int is_whitespace(const char *str)
 {
 	while (*str)
 	{
-		if (!isspace((unsigned char)*str))
+		if (*str != ' ' && *str != '\t' && *str != '\n' &&
+			*str != '\r' && *str != '\v' && *str != '\f')
 			return (0);
 		str++;
 	}
