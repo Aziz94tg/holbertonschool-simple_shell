@@ -49,7 +49,10 @@ int main(void)
 
         if (child_pid == 0)
         {
-            char *argv[] = {line, NULL};
+            char *argv[2];
+
+	    argv[0] = line;
+	    argv[1] = NULL;
 
             if (execve(line, argv, environ) == -1)
             {
