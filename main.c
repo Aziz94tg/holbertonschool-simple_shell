@@ -27,6 +27,7 @@ int main(void)
         if (nread == -1) /* EOF (Ctrl+D) or error */
         {
             free(line);
+	    line = NULL;
             if (isatty(STDIN_FILENO))
                 printf("\n");
             break;
