@@ -76,7 +76,7 @@ int main(__attribute__((unused)) int ac, char **argv)
 
 	    cmd_argv[1] = NULL;
 
-	    if (execve(line, cmd_argv, environ) == -1)
+	    if (execve(cmd_argv[0], cmd_argv, environ) == -1)
             {
                 perror(argv[0]); /* as required in error format */
                 exit(EXIT_FAILURE);
