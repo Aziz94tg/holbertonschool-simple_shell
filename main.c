@@ -54,7 +54,7 @@ int main(void)
         if (line[nread - 1] == '\n')
             line[nread - 1] = '\0';
 
-        if (line[0] == '\0') /* Empty input */
+        if (line[0] == '\0' || is_whitespace(line)) /* Empty input */
             continue;
 
         child_pid = fork();
