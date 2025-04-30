@@ -84,6 +84,7 @@ int main(int argc, char **argv)
     char **args;
     char *command_path;
     pid_t child_pid;
+    int status;
 
     (void)argc;
 
@@ -146,7 +147,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            wait(NULL);
+            wait(&status);
         }
 
         free(args);
