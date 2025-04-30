@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 	{
 		free(args);
 		free(line);
-		exit(0);
+		exit(WEXITSTATUS(status));
 	}
 
         command_path = NULL;
