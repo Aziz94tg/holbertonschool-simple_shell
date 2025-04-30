@@ -111,6 +111,13 @@ int main(int argc, char **argv)
             continue;
         }
 
+	if (strcmp(args[0], "exit") == 0)
+	{
+		free(args);
+		free(line);
+		exit(0);
+	}
+
         command_path = NULL;
 
         if (strchr(args[0], '/') != NULL && access(args[0], X_OK) == 0)
