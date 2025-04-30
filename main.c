@@ -124,6 +124,8 @@ int main(int argc, char **argv)
             {
                 fprintf(stderr, "%s: %d: %s: not found\n", argv[0], line_number, args[0]);
                 free(args);
+		free(line);
+		exit(127);
                 continue;
             }
         }
