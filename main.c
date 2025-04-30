@@ -106,6 +106,20 @@ int main(int argc, char **argv)
 
         args = parse_line(line);
 
+	if (strcmp(args[0], "env") == 0)
+	{
+		int i = 0;
+		
+		while (environ[i])
+		{
+			write(STDOUT_FILENO, environ[i], strlen(environ[i]));
+			write(STDOUT_FILENO, "\n", 1);
+			i++;
+		}
+		free (args);
+		continue;
+	}
+
         if (args[0] == NULL)
         {
             free(args);
