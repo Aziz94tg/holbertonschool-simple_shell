@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 
         command_path = NULL;
 
-        if (access(args[0], X_OK) == 0)
+        if (strchr(args[0], '/') != NULL && access(args[0], X_OK) == 0)
         {
             command_path = strdup(args[0]);
         }
